@@ -1,0 +1,14 @@
+[project]
+name = "tabling-helper"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "colorama>=0.4.6",
+    "pandas>=2.3.3",
+    "pyinstaller>=6.18.0",
+    "python-docx>=1.2.0",
+]
+[tool.uv]
+cache-dir = "D:/uv_cache"
