@@ -424,11 +424,15 @@ class WordTableExtractor:
             self.status_label.config(text="🔴 Error en extracción", fg="red")
             messagebox.showerror("Error", f"No se pudieron extraer los datos:\n{str(e)}")
     
+
     def display_data(self):
         """Muestra los datos extraídos en el Treeview"""
         # Limpiar treeview
         for item in self.tree.get_children():
             self.tree.delete(item)
+        
+        # Limpiar todas las columnas existentes
+        self.tree["columns"] = ()
         
         if not self.tables_data:
             return
@@ -436,25 +440,67 @@ class WordTableExtractor:
         # Mostrar la primera tabla por defecto
         tabla = self.tables_data[0]
         
-        if not tabla:
+        if not tabla or len(tabla) < 2:
             return
         
-        # Configurar columnas del treeview
+        # PRIMERO: Usar la primera fila como encabezados
         headers = tabla[0]
-        self.tree["columns"] = headers
-        
+        datos = tabla[1:] if len(tabla) > 1 else []
+
+        # Limpiar y validar encabezados
+        clean_headers = []
         for i, header in enumerate(headers):
-            self.tree.heading(f"#{i}", text=header, anchor="w")
-            self.tree.column(f"#{i}", width=150, anchor="w", stretch=True)
+            header_str = str(header).strip()
+            if not header_str:
+                if i == 0:
+                    clean_headers.append("Turno/Hora")
+                else:
+                    clean_headers.append(f"Día {i}")
+            else:
+                clean_headers.append(header_str)
         
-        # Insertar datos
-        for fila in tabla[1:]:
-            self.tree.insert("", "end", values=fila)
+        self.tree["columns"] = clean_headers
+        
+        for i, header in enumerate(clean_headers):
+            # Las columnas de datos son #1, #2, #3, etc.
+            col_id = f"#{i+1}"
+            self.tree.heading(col_id, text=header, anchor="w")
+            
+            # Ajustar ancho según el contenido
+            if i == 0:  # Primera columna (turno/hora)
+                self.tree.column(col_id, width=180, minwidth=120, stretch=False, anchor="w")
+            else:  # Columnas de días
+                self.tree.column(col_id, width=300, minwidth=200, stretch=True, anchor="w")
+        
+        # Insertar SOLO los datos (no los encabezados)
+        for fila_idx, fila in enumerate(datos):
+            # Asegurar que la fila tenga el mismo número de columnas que los encabezados
+            if len(fila) < len(clean_headers):
+                # Rellenar con valores vacíos
+                fila_completa = list(fila) + [""] * (len(clean_headers) - len(fila))
+            elif len(fila) > len(clean_headers):
+                # Recortar si tiene más columnas
+                fila_completa = fila[:len(clean_headers)]
+            else:
+                fila_completa = list(fila)
+            
+            # Asegurar que todos los valores sean strings
+            fila_str = []
+            for val in fila_completa:
+                if val is None:
+                    fila_str.append("")
+                else:
+                    val_str = str(val).strip()
+                    fila_str.append(val_str)
+            
+            self.tree.insert("", "end", values=fila_str)
+        
+        print(f"Total filas insertadas en Treeview: {len(datos)}")
         
         # Configurar selector de tabla si hay más de una
         if len(self.tables_data) > 1:
             self.create_table_selector()
-    
+
     def create_table_selector(self):
         """Crea un selector para cambiar entre tablas si hay múltiples"""
         selector_frame = tk.Frame(self.table_frame)
@@ -476,21 +522,68 @@ class WordTableExtractor:
         if hasattr(self, 'table_var'):
             idx = int(self.table_var.get().split()[-1]) - 1
             if 0 <= idx < len(self.tables_data):
-                # Actualizar treeview con la tabla seleccionada
+                # Limpiar treeview
                 for item in self.tree.get_children():
                     self.tree.delete(item)
                 
+                # Limpiar todas las columnas existentes
+                self.tree["columns"] = ()
+
+                # Obtener la tabla seleccionada
                 tabla = self.tables_data[idx]
+                
+                if not tabla or len(tabla) < 2:
+                    return
+                
+                # Usar la primera fila como encabezados
                 headers = tabla[0]
-                self.tree["columns"] = headers
-                
+                datos = tabla[1:] if len(tabla) > 1 else []
+
+                # Limpiar y validar encabezados
+                clean_headers = []
                 for i, header in enumerate(headers):
-                    self.tree.heading(f"#{i}", text=header, anchor="w")
-                    self.tree.column(f"#{i}", width=150, anchor="w", stretch=True)
+                    header_str = str(header).strip()
+                    if not header_str:
+                        if i == 0:
+                            clean_headers.append("Turno/Hora")
+                        else:
+                            clean_headers.append(f"Día {i}")
+                    else:
+                        clean_headers.append(header_str)
+
+                self.tree["columns"] = clean_headers
                 
-                for fila in tabla[1:]:
-                    self.tree.insert("", "end", values=fila)
-    
+                for i, header in enumerate(clean_headers):
+                    # Las columnas de datos son #1, #2, #3, etc.
+                    col_id = f"#{i+1}"
+                    self.tree.heading(col_id, text=header, anchor="w")
+                    
+                    # Ajustar ancho según el contenido
+                    if i == 0:  # Primera columna (turno/hora)
+                        self.tree.column(col_id, width=180, minwidth=120, stretch=False, anchor="w")
+                    else:  # Columnas de días
+                        self.tree.column(col_id, width=300, minwidth=200, stretch=True, anchor="w")
+                
+                # Insertar SOLO los datos (no los encabezados)
+                for fila in datos:
+                    # Asegurar que la fila tenga el mismo número de columnas que los encabezados
+                    if len(fila) < len(clean_headers):
+                        # Rellenar con valores vacíos
+                        fila_completa = list(fila) + [""] * (len(clean_headers) - len(fila))
+                    elif len(fila) > len(clean_headers):
+                        # Recortar si tiene más columnas
+                        fila_completa = fila[:len(clean_headers)]
+                    else:
+                        fila_completa = list(fila)
+
+                    # Asegurar que todos los valores sean strings
+                    fila_str = [str(val).strip() if val is not None else "" for val in fila_completa]
+                    
+                    self.tree.insert("", "end", values=fila_str)
+
+                if len(self.tables_data) > 1:
+                    self.create_table_selector()
+
     def update_summary(self):
         """Actualiza el resumen de las tablas extraídas"""
         self.summary_text.delete(1.0, tk.END)
