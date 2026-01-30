@@ -17,6 +17,7 @@ class WordTableExtractor:
         self.data = {}
         self.tables_data = []
         self.current_file_path = ""
+        self.selector_frame = None  # Control para evitar creación múltiple del selector
         
         self.setup_gui()
         
@@ -497,20 +498,24 @@ class WordTableExtractor:
         
         print(f"Total filas insertadas en Treeview: {len(datos)}")
         
-        # Configurar selector de tabla si hay más de una
+        # Gestionar selector de tabla: destruir existente y crear nuevo si hay múltiples tablas
+        if self.selector_frame is not None:
+            self.selector_frame.destroy()
+            self.selector_frame = None
+        
         if len(self.tables_data) > 1:
             self.create_table_selector()
 
     def create_table_selector(self):
-        """Crea un selector para cambiar entre tablas si hay múltiples"""
-        selector_frame = tk.Frame(self.table_frame)
-        selector_frame.pack(fill=tk.X, padx=5, pady=5)
+        """Crea un selector para cambiar entre tablas si hay múltiples (SOLO UNA VEZ)"""
+        self.selector_frame = tk.Frame(self.table_frame)
+        self.selector_frame.pack(fill=tk.X, padx=5, pady=5)
         
-        tk.Label(selector_frame, text="Seleccionar tabla:").pack(side=tk.LEFT, padx=5)
+        tk.Label(self.selector_frame, text="Seleccionar tabla:").pack(side=tk.LEFT, padx=5)
         
         self.table_var = tk.StringVar()
         table_options = [f"Tabla {i+1}" for i in range(len(self.tables_data))]
-        table_dropdown = ttk.Combobox(selector_frame, textvariable=self.table_var, 
+        table_dropdown = ttk.Combobox(self.selector_frame, textvariable=self.table_var, 
                                      values=table_options, state="readonly", width=15)
         table_dropdown.pack(side=tk.LEFT, padx=5)
         table_dropdown.current(0)
@@ -518,7 +523,7 @@ class WordTableExtractor:
         table_dropdown.bind("<<ComboboxSelected>>", self.on_table_select)
     
     def on_table_select(self, event):
-        """Maneja el cambio de selección de tabla"""
+        """Maneja el cambio de selección de tabla SIN crear nuevo selector"""
         if hasattr(self, 'table_var'):
             idx = int(self.table_var.get().split()[-1]) - 1
             if 0 <= idx < len(self.tables_data):
@@ -580,9 +585,6 @@ class WordTableExtractor:
                     fila_str = [str(val).strip() if val is not None else "" for val in fila_completa]
                     
                     self.tree.insert("", "end", values=fila_str)
-
-                if len(self.tables_data) > 1:
-                    self.create_table_selector()
 
     def update_summary(self):
         """Actualiza el resumen de las tablas extraídas"""
@@ -750,9 +752,10 @@ class WordTableExtractor:
         self.stats_text.delete(1.0, tk.END)
         self.file_text.delete(1.0, tk.END)
         
-        # Limpiar selector de tabla si existe
-        if hasattr(self, 'table_selector_frame'):
-            self.table_selector_frame.destroy()
+        # Destruir selector de tabla si existe
+        if self.selector_frame is not None:
+            self.selector_frame.destroy()
+            self.selector_frame = None
         
         self.status_label.config(text="🟢 Listo", fg="green")
     
